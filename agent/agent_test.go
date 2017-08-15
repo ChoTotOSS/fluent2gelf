@@ -3,20 +3,20 @@ package agent
 import "testing"
 
 func TestNewAgentWithMatch(t *testing.T) {
-	agent := New("kube.*_default_*sekai*.log", "localhost", 12204)
+
+	agent := New(NewConfig("kube.*_default_*sekai*.log", "localhost", 12204, false, "201"))
 	if !agent.Match.MatchString("kube.abc_default_tangtang_sekailmao.log") {
 		t.Fail()
 	}
 }
 
 func TestResetAgent(t *testing.T) {
-	agent := New("kube.*_default_*sekai*.log", "localhost", 12204)
-	agent.Append([]byte("hello"))
-	agent.Append([]byte("hello"))
-	agent.Append([]byte("hello"))
-	agent.Append([]byte("hello"))
-	agent.Append([]byte("hello"))
-	agent.Reset()
+	agent := New(NewConfig("kube.*_default_*sekai*.log", "localhost", 12204, false, "201"))
+	done := make(chan bool)
+	go agent.Run(done)
+	agent.SendAndReset()
+
+	done <- true
 	if len(agent.chunks) != 0 {
 		t.Fail()
 	}

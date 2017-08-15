@@ -1,6 +1,9 @@
 package agent
 
-import "sync"
+import (
+	"io"
+	"sync"
+)
 
 type AgentStore struct {
 	AgentList     []*Agent
@@ -41,4 +44,13 @@ func (as *AgentStore) Take(tag string) *Agent {
 	}
 
 	return as.AgentQuickMap[tag]
+}
+
+func AgentStoreLoad(reader io.Reader) *AgentStore {
+	agentStore := NewAgentStore()
+	configs := LoadConfig(reader)
+	for _, config := range configs {
+		agentStore.addAgent(New(config))
+	}
+	return agentStore
 }
