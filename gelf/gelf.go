@@ -3,6 +3,7 @@ package gelf
 import (
 	"bytes"
 	"encoding/json"
+	"os"
 
 	"github.com/duythinht/zaptor"
 	"go.uber.org/zap"
@@ -26,10 +27,12 @@ type Gelf struct {
 	buf          bytes.Buffer
 }
 
+var DefaultHost, _ = os.Hostname()
+
 func CreateGelf(short string, timestamp int64, level int) *Gelf {
 	g := Gelf{
 		Version:      GELF_DEFAUL_VERSION,
-		Host:         "default",
+		Host:         DefaultHost,
 		ShortMessage: short,
 		Timestamp:    timestamp,
 		Level:        level,

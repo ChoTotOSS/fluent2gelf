@@ -54,11 +54,10 @@ func (c *Chunks) Next() []byte {
 		c.seqIndex++
 	}()
 
-	logger.Info("chunk", zap.Int("seqc", c.seqCount), zap.Int("seqindex", c.seqIndex))
+	logger.Debug("chunk", zap.Int("seqc", c.seqCount), zap.Int("seqindex", c.seqIndex))
 
 	//quick response
 	if c.seqCount == 1 {
-		logger.Info("chunk#next", zap.Int("seqCount", c.seqCount))
 		return c.data
 	}
 
