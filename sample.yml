@@ -1,0 +1,6 @@
+- match: kube.log.*_default_shop-profile*.log
+  host: 10.60.6.48
+  port: 12203
+  multiline: true
+  begin_record: 201
+  
