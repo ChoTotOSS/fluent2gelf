@@ -40,6 +40,7 @@ func main() {
 	serv, err := net.Listen("tcp", ":24224")
 	checkError(err)
 
+	logger.Info("Forward server was started 24224")
 	for {
 		conn, err := serv.Accept()
 		logger.Debug("New client connected", zap.Any("conn", conn))
