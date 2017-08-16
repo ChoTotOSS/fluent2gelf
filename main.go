@@ -21,7 +21,12 @@ func main() {
 	flag.StringVar(&c, "c", "sample.yml", "config file")
 	flag.Parse()
 
-	f, _ := os.Open(c)
+	f, err := os.Open(c)
+
+	if err != nil {
+		logger.Error("Open config", zap.Error(err))
+	}
+
 	agentStore := agent.AgentStoreLoad(f)
 
 	doneList := make([](chan bool), len(agentStore.AgentList))
