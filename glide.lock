@@ -1,0 +1,24 @@
+hash: e119a806344a75a2d7d745bb20fab85a0d1296a8f03a6e811a92f778f61b6141
+updated: 2017-08-16T14:41:56.166541859+07:00
+imports:
+- name: github.com/duythinht/zaptor
+  version: 81ee58a2de08323d51d43f016fda4d2cc2806229
+- name: github.com/ugorji/go
+  version: 5efa3251c7f7d05e5d9704a69a984ec9f1386a40
+  subpackages:
+  - codec
+- name: go.uber.org/atomic
+  version: 4e336646b2ef9fc6e47be8e21594178f98e5ebcf
+- name: go.uber.org/multierr
+  version: 3c4937480c32f4c13a875a1829af76c98ca3d40a
+- name: go.uber.org/zap
+  version: 9d9d6135afe89b6fc4a05e9a8552526caba38048
+  subpackages:
+  - buffer
+  - internal/bufferpool
+  - internal/color
+  - internal/exit
+  - zapcore
+- name: gopkg.in/yaml.v2
+  version: eb3733d160e74a9c7e442f435eb3bea458e1d19f
+testImports: []
