@@ -4,8 +4,8 @@ import "testing"
 
 func TestNewAgentStore(t *testing.T) {
 	store := NewAgentStore()
-	agent1 := New(NewConfig("kube.*_default_*sekai*.log", "agent1", 12204, true, ""))
-	agent2 := New(NewConfig("kube.*_default_*world*.log", "agent2", 12204, true, ""))
+	agent1 := New(NewConfig("kube.*_default_*sekai*.log", "agent1", 12204, true))
+	agent2 := New(NewConfig("kube.*_default_*world*.log", "agent2", 12204, true))
 	store.addAgent(agent1)
 	store.addAgent(agent2)
 

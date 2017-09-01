@@ -5,8 +5,8 @@ import (
 	"math"
 	"testing"
 
-	"github.com/ChoTotOSS/fluent2gelf/quickmsgp/family"
-	"github.com/ChoTotOSS/fluent2gelf/quickmsgp/format"
+	"github.com/ChoTotOSS/fluent2gelf/quickmsgpack/family"
+	"github.com/ChoTotOSS/fluent2gelf/quickmsgpack/format"
 )
 
 func TestFamilyOf(t *testing.T) {
@@ -129,11 +129,11 @@ func TestExtraOrValue(t *testing.T) {
 }
 
 func TestFixedValueOf(t *testing.T) {
-	test := func(expected int, formats ...byte) {
+	test := func(expected int8, formats ...byte) {
 		for _, f := range formats {
 			t.Run(fmt.Sprintf("Test %s extra for value", format.StringOf(f)), func(t *testing.T) {
 				if FixedValueOf(f) != expected {
-					t.Logf("Result = %v, expected = %v", ValueOrExtraOf(f), expected)
+					t.Logf("Result = %v, expected = %v", FixedValueOf(f), expected)
 					t.Fail()
 				}
 			})
@@ -141,24 +141,44 @@ func TestFixedValueOf(t *testing.T) {
 	}
 
 	traver(format.PositiveFixintLow, format.PositiveFixintHigh, func(x byte) {
-		test(int(x-format.PositiveFixintLow), x)
+		test(int8(x-format.PositiveFixintLow), x)
 	})
 	traver(format.NegativeFixintLow, format.NegativeFixintHigh, func(x byte) {
-		test(int(x)-256, x)
+		test(int8(x), x)
 	})
 	traver(format.FixarrayLow, format.FixarrayHigh, func(x byte) {
-		test(int(x-format.FixarrayLow), x)
+		test(int8(x-format.FixarrayLow), x)
 	})
 
 	traver(format.FixmapLow, format.FixmapHigh, func(x byte) {
-		test(int(x-format.FixmapLow), x)
+		test(int8(x-format.FixmapLow), x)
 	})
 
 	traver(format.FixstrLow, format.FixmapHigh, func(x byte) {
-		test(int(x-format.FixstrLow), x)
+		test(int8(x-format.FixstrLow), x)
 	})
 
 	traver(format.Fixext1, format.Fixext16, func(x byte) {
-		test(int(math.Pow(2.0, float64(x-format.Fixext1))), x)
+		test(int8(math.Pow(2.0, float64(x-format.Fixext1))), x)
 	})
+}
+
+func TestExtraOf(t *testing.T) {
+	test := func(expected uint8, formats ...byte) {
+		for _, f := range formats {
+			t.Run(fmt.Sprintf("Test %s extra for value", format.StringOf(f)), func(t *testing.T) {
+				if ExtraOf(f) != expected {
+					t.Logf("Result = %v, expected = %v", ExtraOf(f), expected)
+					t.Fail()
+				}
+			})
+		}
+	}
+
+	test(1, format.Bin8, format.Ext8, format.Int8, format.Uint8, format.Str8)
+	test(2, format.Bin16, format.Ext16, format.Int16, format.Uint16, format.Str16)
+	test(2, format.Array16, format.Map16)
+	test(4, format.Bin32, format.Ext32, format.Int32, format.Uint32, format.Str32)
+	test(4, format.Float, format.Array32, format.Map32)
+	test(8, format.Float64, format.Int64)
 }

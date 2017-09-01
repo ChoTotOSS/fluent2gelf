@@ -21,10 +21,6 @@ func TestReadConfig(t *testing.T) {
 		t.Fail()
 	}
 
-	if configs[0].BeginRecord != "201" {
-		t.Fail()
-	}
-
 	if configs[0].Host != "localhost" {
 		t.Fail()
 	}

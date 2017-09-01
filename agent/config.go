@@ -8,20 +8,25 @@ import (
 )
 
 type AgentConfig struct {
-	Match       string
-	Host        string
-	Port        int
-	Multiline   bool
-	BeginRecord string `yaml:"begin_record"`
+	Match     string
+	Host      string
+	Port      int
+	Multiline bool
+	Firstline *RecordMatch `yaml:"firstline_match"`
 }
 
-func NewConfig(match string, host string, port int, multiline bool, begin string) AgentConfig {
+type RecordMatch struct {
+	Begin   string
+	IndexLT int `yaml:"index_lt"`
+	Regexp  string
+}
+
+func NewConfig(match string, host string, port int, multiline bool) AgentConfig {
 	return AgentConfig{
-		Match:       match,
-		Host:        host,
-		Port:        port,
-		Multiline:   multiline,
-		BeginRecord: begin,
+		Match:     match,
+		Host:      host,
+		Port:      port,
+		Multiline: multiline,
 	}
 }
 

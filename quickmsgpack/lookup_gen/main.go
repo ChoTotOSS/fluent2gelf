@@ -8,8 +8,8 @@ import (
 	"io/ioutil"
 	"log"
 
-	"github.com/ChoTotOSS/fluent2gelf/quickmsgp/family"
-	"github.com/ChoTotOSS/fluent2gelf/quickmsgp/format"
+	"github.com/ChoTotOSS/fluent2gelf/quickmsgpack/family"
+	"github.com/ChoTotOSS/fluent2gelf/quickmsgpack/format"
 )
 
 const (

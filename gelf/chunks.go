@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"time"
-
-	"go.uber.org/zap"
 )
 
 func RandomChunkId() []byte {
@@ -54,7 +52,7 @@ func (c *Chunks) Next() []byte {
 		c.seqIndex++
 	}()
 
-	logger.Debug("chunk", zap.Int("seqc", c.seqCount), zap.Int("seqindex", c.seqIndex))
+	//logger.Debug("chunk", zap.Int("seqc", c.seqCount), zap.Int("seqindex", c.seqIndex))
 
 	//quick response
 	if c.seqCount == 1 {

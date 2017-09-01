@@ -18,6 +18,10 @@ func ValueOrExtraOf(b byte) int {
 	return int(extraBytesOf[b])
 }
 
-func FixedValueOf(b byte) int {
-	return int(fixedValueOf[b])
+func FixedValueOf(b byte) int8 {
+	return fixedValueOf[b]
+}
+
+func ExtraOf(b byte) uint8 {
+	return extraBytesOf[b]
 }

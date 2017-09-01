@@ -1,7 +1,9 @@
 package agent
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"regexp"
@@ -21,13 +23,13 @@ var streamLevels = map[string]int{
 }
 
 type Agent struct {
-	Match       *regexp.Regexp
-	Host        string
-	Port        int
-	Multiline   bool
-	BeginRecord string
-	chunks      [][]byte //stupid implements, thinking later
-	in          chan []interface{}
+	Match     *regexp.Regexp
+	Host      string
+	Port      int
+	Multiline bool
+	firstline func([]byte) bool
+	chunks    [][]byte //stupid implements, thinking later
+	in        chan chan []byte
 }
 
 func New(cfg AgentConfig) *Agent {
@@ -39,14 +41,49 @@ func New(cfg AgentConfig) *Agent {
 		panic(err)
 	}
 
+	if cfg.Multiline && cfg.Firstline == nil {
+		panic(errors.New("Agent config is invalid, multiline support should specs firstline match"))
+	}
+
+	var f func([]byte) bool
+	switch {
+	case len(cfg.Firstline.Regexp) > 0:
+		rx, err := regexp.Compile(cfg.Firstline.Regexp)
+		if err != nil {
+			panic(err)
+		}
+
+		f = func(log []byte) bool {
+			return rx.Match(log)
+		}
+
+	case cfg.Firstline.IndexLT > 0 && len(cfg.Firstline.Begin) > 0:
+		maxLengthToCheck := len(cfg.Firstline.Begin) + cfg.Firstline.IndexLT
+		sep := []byte(cfg.Firstline.Begin)
+		f = func(log []byte) bool {
+			//should handle error
+			if len(log) > maxLengthToCheck {
+				return bytes.Index(log[:maxLengthToCheck], sep) > 0
+			}
+			return bytes.Index(log, sep) > 0
+		}
+	case len(cfg.Firstline.Begin) > 0:
+		sep := []byte(cfg.Firstline.Begin)
+		f = func(log []byte) bool {
+			return bytes.HasPrefix(log, sep)
+		}
+	default:
+		panic(errors.New("Missing firstline match"))
+	}
+
 	return &Agent{
-		Match:       rx,
-		Host:        cfg.Host,
-		Port:        cfg.Port,
-		Multiline:   cfg.Multiline,
-		BeginRecord: cfg.BeginRecord,
-		chunks:      make([][]byte, 0),
-		in:          make(chan []interface{}),
+		Match:     rx,
+		Host:      cfg.Host,
+		Port:      cfg.Port,
+		Multiline: cfg.Multiline,
+		firstline: f,
+		chunks:    make([][]byte, 0),
+		in:        make(chan chan []byte),
 	}
 }
 
@@ -54,8 +91,8 @@ func (a *Agent) appendChunk(chunk []byte) {
 	a.chunks = append(a.chunks, chunk)
 }
 
-func (a *Agent) Put(entries []interface{}) {
-	a.in <- entries
+func (a *Agent) Ship(logs chan []byte) {
+	a.in <- logs
 }
 
 func (a *Agent) Run(done chan bool) {
@@ -85,36 +122,27 @@ func (a *Agent) Run(done chan bool) {
 
 	for {
 		select {
-		case entries := <-a.in:
-			for _, entry := range entries {
-
-				e := entry.([]interface{}) // [timestamp, record[string]interface{}
-				record := e[1].(map[string]interface{})
-				jsonBytes := record["log"].([]byte)
-
-				var m map[string]string
-				err := json.Unmarshal(jsonBytes, &m)
+		case logs := <-a.in:
+			logger.Debug("Got logs")
+			for log := range logs {
+				var logm map[string]string
+				err := json.Unmarshal(log, &logm)
 				if err != nil {
-					logger.Warn("agent#put", zap.Error(err))
 					continue
 				}
-
 				if a.Multiline {
-					if strings.HasPrefix(m["log"], a.BeginRecord) {
-						// commit old gelf
+					if a.firstline([]byte(logm["log"])) {
 						commit()
-						//Then Create a new once gelf
-						createGelf(m)
+						createGelf(logm)
 					} else {
-						_gelf.Append(m["log"])
+						_gelf.Append(logm["log"])
 					}
 				} else {
-					//commit old and create new once
 					commit()
-					createGelf(m)
+					createGelf(logm)
 				}
 			}
-			commit() //commit last message
+			commit()
 			a.SendAndReset()
 		case <-done:
 			return
@@ -123,20 +151,18 @@ func (a *Agent) Run(done chan bool) {
 }
 
 func (a *Agent) SendAndReset() {
-
 	conn, err := net.Dial("udp", fmt.Sprintf("%s:%d", a.Host, a.Port))
 	if err != nil {
 		logger.Error("Agent can't dial graylog", zap.Error(err))
 	}
 	defer func() { _ = conn.Close() }()
-
-	logger.Debug("len chunks", zap.Int("len", len(a.chunks)))
+	logger.Debug("gelf#send chunks", zap.Int("count", len(a.chunks)))
 	for _, chunk := range a.chunks {
 		n, err := conn.Write(chunk)
 		if err != nil {
 			logger.Warn("gelf#send", zap.Error(err))
 		} else {
-			logger.Debug("gelf#send", zap.Int("n", n))
+			logger.Debug("gelf#send", zap.Int("bytes", n))
 		}
 	}
 

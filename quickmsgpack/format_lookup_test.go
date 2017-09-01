@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/ChoTotOSS/fluent2gelf/quickmsgp/family"
-	"github.com/ChoTotOSS/fluent2gelf/quickmsgp/format"
+	"github.com/ChoTotOSS/fluent2gelf/quickmsgpack/family"
+	"github.com/ChoTotOSS/fluent2gelf/quickmsgpack/format"
 )
 
 func traver(begin byte, end byte, f func(byte)) {
@@ -78,7 +78,9 @@ func TestExtraBytesLookup(t *testing.T) {
 	}
 	test(1, format.Int8, format.Bin8, format.Str8)
 	test(2, format.Int16, format.Bin16, format.Str16)
+	test(2, format.Array16, format.Map16, format.Ext16)
 	test(4, format.Int32, format.Bin32, format.Str32)
+	test(4, format.Array32, format.Map32, format.Ext32)
 	test(8, format.Float64, format.Int64)
 }
 

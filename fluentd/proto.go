@@ -1,64 +1,140 @@
 package fluentd
 
 import (
-	"io"
+	"bytes"
 	"net"
-	"reflect"
+
+	"go.uber.org/zap"
 
 	"github.com/ChoTotOSS/fluent2gelf/agent"
-	"github.com/duythinht/zaptor"
-	"github.com/ugorji/go/codec"
-	"go.uber.org/zap"
+	"github.com/ChoTotOSS/fluent2gelf/quickmsgpack"
+	"github.com/ChoTotOSS/fluent2gelf/quickmsgpack/family"
 )
 
-var logger = zaptor.Default()
-var mh codec.MsgpackHandle
-
-func init() {
-	mh.MapType = reflect.TypeOf(map[string]interface{}(nil))
-}
-
 func ForwardHandle(conn net.Conn, agentStore *agent.AgentStore) {
+	reader := quickmsgpack.NewReader(conn)
+	defer func() { _ = conn.Close() }()
 
-	decoder := codec.NewDecoder(conn, &mh)
+	f, b := reader.NextFormat() //type should be fixarray
 
-	v := []interface{}{nil, nil, nil}
-
-	err := decoder.Decode(&v)
-	if err != nil {
-		if err != io.EOF {
-			logger.Error("decode error", zap.Error(err))
-		}
+	if f != family.Array || !quickmsgpack.IsFixedFormat(b) {
 		return
 	}
 
-	tag, ok := v[0].([]byte)
+	switch quickmsgpack.FixedValueOf(b) {
+	case 2:
+		handleWithoutZip(reader, agentStore)
+	case 3:
 
-	if ok {
-		logger.Debug("entries", zap.ByteString("tag", tag))
+	default:
+	}
+}
 
-		a := agentStore.Take(string(tag))
+func handleWithoutZip(r *quickmsgpack.Reader, agentStore *agent.AgentStore) {
+	f, b := r.NextFormat()
+	if f != family.String {
+		return
+	}
 
-		if a == nil {
-			return
-		}
+	var tag string
 
-		entries, ok := v[1].([]interface{})
+	if quickmsgpack.IsFixedFormat(b) {
+		//logger.Debug("Fixed string tag")
+		tag = string(r.NextBytes(uint(quickmsgpack.FixedValueOf(b))))
+	} else {
+		//logger.Debug("String tag")
+		extra := quickmsgpack.ExtraOf(b)
+		tag = string(r.NextBytes(r.NextLength(extra)))
+	}
 
-		if ok {
-			logger.Debug("Deserialize entries for", zap.ByteString("tag", tag))
-			a.Put(entries)
-		} else {
-			entries, ok := v[1].([]uint8)
-			if ok {
-				logger.Warn("Need implements unzip for entries", zap.Any("entries", entries))
-			} else {
-				logger.Warn("decode entries failed",
-					zap.ByteString("tag", tag),
-					zap.Any("entries", v[1]),
-					zap.Any("options", v[2]),
-				)
-			}
+	//logger.Debug("Handle message", zap.String("tag", tag))
+
+	a := agentStore.Take(tag)
+
+	if a == nil {
+		return
+	}
+
+	//Handle for entries block
+	f, b = r.NextFormat()
+
+	if f != family.Array {
+		logger.Warn("msgp entries wrong format", zap.Any("family", f))
+		return
+	}
+
+	count := r.NextLengthOf(b)
+	c := make(chan []byte)
+	a.Ship(c)
+	for ; count > 0; count-- {
+		if e := nextEntry(r); e != nil {
+			c <- e.Log
 		}
 	}
+	close(c)
+}
+
+type Entry struct {
+	Log []byte
+}
+
+func nextEntry(r *quickmsgpack.Reader) *Entry {
+	f, b := r.NextFormat()
+	if f != family.Array || quickmsgpack.FixedValueOf(b) != 2 {
+		logger.Warn("Entry is wrong format", zap.Uint16("family", f), zap.Any("fixedValue", quickmsgpack.FixedValueOf(b)))
+		return nil
+	}
+
+	f, b = r.NextFormat()
+
+	switch f {
+	case family.Integer:
+		r.NextBytes(4)
+	case family.Extension:
+		logger.Warn("Does not implements timestamp ext")
+		return nil
+	default:
+		logger.Warn("Wrong time format entry")
+		return nil
+	}
+
+	// then read record
+	f, b = r.NextFormat()
+
+	if f != family.Map {
+		logger.Warn("Wrong record format")
+		return nil
+	}
+
+	count := r.NextLengthOf(b)
+
+	var e *Entry
+
+	for ; count > 0; count-- {
+		// Read for key
+		f, b = r.NextFormat()
+		if f != family.String {
+			logger.Warn("Wrong record format")
+			return nil
+		}
+
+		key := r.NextBytes(r.NextLengthOf(b))
+
+		// Read for value
+		f, b = r.NextFormat()
+		if f != family.String {
+			logger.Warn("Wrong record format")
+			return nil
+		}
+
+		value := r.NextBytes(r.NextLengthOf(b))
+
+		//logger.Debug("record map", zap.ByteString("key", key), zap.ByteString("value", value))
+
+		if bytes.Compare(key, []byte("log")) == 0 {
+			e = new(Entry)
+			e.Log = value
+		}
+	}
+	return e
 }
