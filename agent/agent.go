@@ -46,34 +46,37 @@ func New(cfg AgentConfig) *Agent {
 	}
 
 	var f func([]byte) bool
-	switch {
-	case len(cfg.Firstline.Regexp) > 0:
-		rx, err := regexp.Compile(cfg.Firstline.Regexp)
-		if err != nil {
-			panic(err)
-		}
+	if cfg.Multiline {
 
-		f = func(log []byte) bool {
-			return rx.Match(log)
-		}
-
-	case cfg.Firstline.IndexLT > 0 && len(cfg.Firstline.Begin) > 0:
-		maxLengthToCheck := len(cfg.Firstline.Begin) + cfg.Firstline.IndexLT
-		sep := []byte(cfg.Firstline.Begin)
-		f = func(log []byte) bool {
-			//should handle error
-			if len(log) > maxLengthToCheck {
-				return bytes.Index(log[:maxLengthToCheck], sep) > 0
+		switch {
+		case len(cfg.Firstline.Regexp) > 0:
+			rx, err := regexp.Compile(cfg.Firstline.Regexp)
+			if err != nil {
+				panic(err)
 			}
-			return bytes.Index(log, sep) > 0
+
+			f = func(log []byte) bool {
+				return rx.Match(log)
+			}
+
+		case cfg.Firstline.IndexLT > 0 && len(cfg.Firstline.Begin) > 0:
+			maxLengthToCheck := len(cfg.Firstline.Begin) + cfg.Firstline.IndexLT
+			sep := []byte(cfg.Firstline.Begin)
+			f = func(log []byte) bool {
+				//should handle error
+				if len(log) > maxLengthToCheck {
+					return bytes.Index(log[:maxLengthToCheck], sep) >= 0
+				}
+				return bytes.Index(log, sep) >= 0
+			}
+		case len(cfg.Firstline.Begin) > 0:
+			sep := []byte(cfg.Firstline.Begin)
+			f = func(log []byte) bool {
+				return bytes.HasPrefix(log, sep)
+			}
+		default:
+			panic(errors.New("Missing firstline match"))
 		}
-	case len(cfg.Firstline.Begin) > 0:
-		sep := []byte(cfg.Firstline.Begin)
-		f = func(log []byte) bool {
-			return bytes.HasPrefix(log, sep)
-		}
-	default:
-		panic(errors.New("Missing firstline match"))
 	}
 
 	return &Agent{

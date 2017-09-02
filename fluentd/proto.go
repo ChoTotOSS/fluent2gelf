@@ -9,6 +9,7 @@ import (
 	"github.com/ChoTotOSS/fluent2gelf/agent"
 	"github.com/ChoTotOSS/fluent2gelf/quickmsgpack"
 	"github.com/ChoTotOSS/fluent2gelf/quickmsgpack/family"
+	"github.com/ChoTotOSS/fluent2gelf/quickmsgpack/format"
 )
 
 func ForwardHandle(conn net.Conn, agentStore *agent.AgentStore) {
@@ -91,8 +92,8 @@ func nextEntry(r *quickmsgpack.Reader) *Entry {
 	case family.Integer:
 		r.NextBytes(4)
 	case family.Extension:
-		logger.Warn("Does not implements timestamp ext")
-		return nil
+		// Skip for ext
+		r.NextBytes(r.NextLengthOf(b) + 1)
 	default:
 		logger.Warn("Wrong time format entry")
 		return nil
@@ -102,7 +103,7 @@ func nextEntry(r *quickmsgpack.Reader) *Entry {
 	f, b = r.NextFormat()
 
 	if f != family.Map {
-		logger.Warn("Wrong record format")
+		logger.Warn("Wrong record format, not a map family", zap.String("format", format.StringOf(b)))
 		return nil
 	}
 
@@ -114,7 +115,7 @@ func nextEntry(r *quickmsgpack.Reader) *Entry {
 		// Read for key
 		f, b = r.NextFormat()
 		if f != family.String {
-			logger.Warn("Wrong record format")
+			logger.Warn("Wrong record format, key is not string", zap.String("format", format.StringOf(b)))
 			return nil
 		}
 
@@ -123,13 +124,11 @@ func nextEntry(r *quickmsgpack.Reader) *Entry {
 		// Read for value
 		f, b = r.NextFormat()
 		if f != family.String {
-			logger.Warn("Wrong record format")
+			logger.Warn("Wrong record format, value", zap.String("format", format.StringOf(b)))
 			return nil
 		}
 
 		value := r.NextBytes(r.NextLengthOf(b))
-
-		//logger.Debug("record map", zap.ByteString("key", key), zap.ByteString("value", value))
 
 		if bytes.Compare(key, []byte("log")) == 0 {
 			e = new(Entry)
