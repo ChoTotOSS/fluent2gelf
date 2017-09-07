@@ -2,6 +2,8 @@ package fluentd
 
 import (
 	"bytes"
+	"io"
+	"io/ioutil"
 	"net"
 
 	"go.uber.org/zap"
@@ -12,9 +14,16 @@ import (
 	"github.com/ChoTotOSS/fluent2gelf/quickmsgpack/format"
 )
 
+func endOrStash(r io.Reader) {
+	_, _ = io.Copy(ioutil.Discard, r)
+}
+
 func ForwardHandle(conn net.Conn, agentStore *agent.AgentStore) {
 	reader := quickmsgpack.NewReader(conn)
-	defer func() { _ = conn.Close() }()
+	defer func() {
+		endOrStash(conn)
+		_ = conn.Close()
+	}()
 
 	f, b := reader.NextFormat() //type should be fixarray
 
