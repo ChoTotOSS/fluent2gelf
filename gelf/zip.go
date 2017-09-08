@@ -7,7 +7,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func ZipMessage(message []byte) []byte {
+func zipMessage(message []byte) []byte {
 
 	var buffer bytes.Buffer
 	writer := gzip.NewWriter(&buffer)
@@ -20,3 +20,14 @@ func ZipMessage(message []byte) []byte {
 	_ = writer.Close()
 	return buffer.Bytes()
 }
+
+/*
+
+
+try (
+	_ = writer.Write(message)
+) else (err error) {
+	return err
+}
+
+*/
