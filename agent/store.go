@@ -5,25 +5,25 @@ import (
 	"sync"
 )
 
-type AgentStore struct {
+type Store struct {
 	AgentList     []*Agent
 	AgentQuickMap map[string]*Agent
 	mx            *sync.RWMutex
 }
 
-func NewAgentStore() *AgentStore {
-	return &AgentStore{
+func NewStore() *Store {
+	return &Store{
 		AgentList:     make([]*Agent, 0),
 		AgentQuickMap: make(map[string]*Agent, 0),
 		mx:            new(sync.RWMutex),
 	}
 }
 
-func (as *AgentStore) addAgent(agent *Agent) {
+func (as *Store) addAgent(agent *Agent) {
 	as.AgentList = append(as.AgentList, agent)
 }
 
-func (as *AgentStore) Take(tag string) *Agent {
+func (as *Store) Take(tag string) *Agent {
 	as.mx.RLock()
 	if a, ok := as.AgentQuickMap[tag]; ok {
 		defer as.mx.RUnlock()
@@ -46,8 +46,8 @@ func (as *AgentStore) Take(tag string) *Agent {
 	return as.AgentQuickMap[tag]
 }
 
-func AgentStoreLoad(reader io.Reader) *AgentStore {
-	agentStore := NewAgentStore()
+func AgentStoreLoad(reader io.Reader) *Store {
+	agentStore := NewStore()
 	configs := LoadConfig(reader)
 	for _, config := range configs {
 		agentStore.addAgent(New(config))

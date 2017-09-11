@@ -7,31 +7,30 @@ import (
 	yaml "gopkg.in/yaml.v2"
 )
 
-type AgentConfig struct {
+type Config struct {
 	Match     string
 	Host      string
 	Port      int
-	Multiline bool
-	Firstline *RecordMatch `yaml:"firstline_match"`
+	Multiline *FirstlineMatch
 }
 
-type RecordMatch struct {
+type FirstlineMatch struct {
 	Begin   string
 	IndexLT int `yaml:"index_lt"`
 	Regexp  string
 }
 
-func NewConfig(match string, host string, port int, multiline bool) AgentConfig {
-	return AgentConfig{
+func NewConfig(match string, host string, port int, multiline bool) Config {
+	return Config{
 		Match:     match,
 		Host:      host,
 		Port:      port,
-		Multiline: multiline,
+		Multiline: nil,
 	}
 }
 
-func LoadConfig(reader io.Reader) []AgentConfig {
-	var configs []AgentConfig
+func LoadConfig(reader io.Reader) []Config {
+	var configs []Config
 
 	cfgContent, err := ioutil.ReadAll(reader)
 

@@ -9,8 +9,6 @@ var dumpConfig = `
 - match: docker.*.abc
   host: localhost
   port: 12701
-  multiline: true
-  begin_record: 201
 `
 
 func TestReadConfig(t *testing.T) {

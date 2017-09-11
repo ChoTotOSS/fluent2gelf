@@ -8,7 +8,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/ChoTotOSS/fluent2gelf/agent"
-	"github.com/ChoTotOSS/fluent2gelf/fluentd"
+	"github.com/ChoTotOSS/fluent2gelf/aggregator"
 	"github.com/duythinht/zaptor"
 )
 
@@ -29,11 +29,8 @@ func main() {
 
 	agentStore := agent.AgentStoreLoad(f)
 
-	doneList := make([](chan bool), len(agentStore.AgentList))
-
-	for i, agent := range agentStore.AgentList {
+	for _, agent := range agentStore.AgentList {
 		done := make(chan bool)
-		doneList[i] = done
 		go agent.Run(done)
 	}
 
@@ -45,7 +42,8 @@ func main() {
 		conn, err := serv.Accept()
 		logger.Debug("New client connected", zap.Any("conn", conn))
 		checkError(err)
-		go fluentd.ForwardHandle(conn, agentStore)
+
+		go aggregator.Default.Process(conn, agentStore)
 	}
 }
 

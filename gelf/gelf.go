@@ -28,7 +28,7 @@ type Gelf struct {
 var DefaultHost, _ = os.Hostname()
 
 // Create a new gelf, with short message, timestamp and level, and host
-func CreateGelf(short string, timestamp int64, level int, host string) *Gelf {
+func New(short string, timestamp int64, level int, host string) *Gelf {
 	g := Gelf{
 		Version:      GELF_DEFAUL_VERSION,
 		Host:         host,

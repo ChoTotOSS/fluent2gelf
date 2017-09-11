@@ -11,7 +11,7 @@ func TestGelfMessage(t *testing.T) {
 		timestamp := time.Now().Unix()
 		short := randRunes(10)
 		host := randRunes(15)
-		message := CreateGelf(short, timestamp, 1, host)
+		message := New(short, timestamp, 1, host)
 
 		x := make(map[string]interface{}, 0)
 		_ = json.Unmarshal(message.ToJSON(), &x)
@@ -53,7 +53,7 @@ func TestGelfAppend(t *testing.T) {
 		more1 := randRunes(100)
 		more2 := randRunes(120)
 
-		message := CreateGelf(short, timestamp, 1, "default")
+		message := New(short, timestamp, 1, "default")
 		message.Append(more1)
 		message.Append(more2)
 
@@ -75,7 +75,7 @@ func TestGelfToChunks(t *testing.T) {
 		more1 := randRunes(100)
 		more2 := randRunes(120)
 
-		message := CreateGelf(short, timestamp, 1, "default")
+		message := New(short, timestamp, 1, "default")
 		message.Append(more1)
 		message.Append(more2)
 

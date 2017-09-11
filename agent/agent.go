@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ChoTotOSS/fluent2gelf/entry"
 	"github.com/ChoTotOSS/fluent2gelf/gelf"
 	"github.com/duythinht/zaptor"
 	"go.uber.org/zap"
@@ -29,10 +30,10 @@ type Agent struct {
 	Multiline bool
 	firstline func([]byte) bool
 	chunks    [][]byte //stupid implements, thinking later
-	in        chan chan []byte
+	in        chan chan *entry.Entry
 }
 
-func New(cfg AgentConfig) *Agent {
+func New(cfg Config) *Agent {
 	expr := strings.Replace(cfg.Match, "*", ".*", -1)
 
 	rx, err := regexp.Compile(expr)
@@ -41,16 +42,12 @@ func New(cfg AgentConfig) *Agent {
 		panic(err)
 	}
 
-	if cfg.Multiline && cfg.Firstline == nil {
-		panic(errors.New("Agent config is invalid, multiline support should specs firstline match"))
-	}
-
 	var f func([]byte) bool
-	if cfg.Multiline {
+	if cfg.Multiline != nil {
 
 		switch {
-		case len(cfg.Firstline.Regexp) > 0:
-			rx, err := regexp.Compile(cfg.Firstline.Regexp)
+		case len(cfg.Multiline.Regexp) > 0:
+			rx, err := regexp.Compile(cfg.Multiline.Regexp)
 			if err != nil {
 				panic(err)
 			}
@@ -59,9 +56,9 @@ func New(cfg AgentConfig) *Agent {
 				return rx.Match(log)
 			}
 
-		case cfg.Firstline.IndexLT > 0 && len(cfg.Firstline.Begin) > 0:
-			maxLengthToCheck := len(cfg.Firstline.Begin) + cfg.Firstline.IndexLT
-			sep := []byte(cfg.Firstline.Begin)
+		case cfg.Multiline.IndexLT > 0 && len(cfg.Multiline.Begin) > 0:
+			maxLengthToCheck := len(cfg.Multiline.Begin) + cfg.Multiline.IndexLT
+			sep := []byte(cfg.Multiline.Begin)
 			f = func(log []byte) bool {
 				//should handle error
 				if len(log) > maxLengthToCheck {
@@ -69,8 +66,8 @@ func New(cfg AgentConfig) *Agent {
 				}
 				return bytes.Index(log, sep) >= 0
 			}
-		case len(cfg.Firstline.Begin) > 0:
-			sep := []byte(cfg.Firstline.Begin)
+		case len(cfg.Multiline.Begin) > 0:
+			sep := []byte(cfg.Multiline.Begin)
 			f = func(log []byte) bool {
 				return bytes.HasPrefix(log, sep)
 			}
@@ -83,10 +80,10 @@ func New(cfg AgentConfig) *Agent {
 		Match:     rx,
 		Host:      cfg.Host,
 		Port:      cfg.Port,
-		Multiline: cfg.Multiline,
+		Multiline: cfg.Multiline != nil,
 		firstline: f,
 		chunks:    make([][]byte, 0),
-		in:        make(chan chan []byte),
+		in:        make(chan chan *entry.Entry),
 	}
 }
 
@@ -94,17 +91,16 @@ func (a *Agent) appendChunk(chunk []byte) {
 	a.chunks = append(a.chunks, chunk)
 }
 
-func (a *Agent) Ship(logs chan []byte) {
+func (a *Agent) Ship(logs chan *entry.Entry) {
 	a.in <- logs
 }
 
 func (a *Agent) Run(done chan bool) {
 
-	_gelf := gelf.CreateGelf("Start agent for: "+a.Match.String(), time.Now().Unix(), 1)
+	_gelf := gelf.New("Start agent for: "+a.Match.String(), time.Now().Unix(), 1, gelf.DefaultHost)
 
 	commit := func() {
-		zipped := gelf.ZipMessage(_gelf.ToJSON())
-		chunks := gelf.NewChunks(zipped)
+		chunks := _gelf.ToChunks()
 
 		for chunks.HasNext() {
 			a.appendChunk(chunks.Next())
@@ -120,16 +116,15 @@ func (a *Agent) Run(done chan bool) {
 			)
 		}
 		logger.Debug("agent#gelf#create", zap.String("log", m["log"]), zap.Time("time", t))
-		_gelf = gelf.CreateGelf(m["log"], t.Unix(), streamLevels[m["stream"]])
+		_gelf = gelf.New(m["log"], t.Unix(), streamLevels[m["stream"]], gelf.DefaultHost)
 	}
 
 	for {
 		select {
-		case logs := <-a.in:
-			logger.Debug("Got logs")
-			for log := range logs {
+		case entries := <-a.in:
+			for e := range entries {
 				var logm map[string]string
-				err := json.Unmarshal(log, &logm)
+				err := json.Unmarshal(e.Log, &logm)
 				if err != nil {
 					continue
 				}
