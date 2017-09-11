@@ -1,6 +1,8 @@
 package aggregator
 
 import (
+	"io"
+	"io/ioutil"
 	"net"
 
 	"go.uber.org/zap"
@@ -23,7 +25,11 @@ func New() Aggregator {
 func (a *Aggregator) Process(conn net.Conn, s *agent.Store) {
 
 	defer func() {
-		err := conn.Close()
+		_, err := io.Copy(ioutil.Discard, conn)
+		if err != nil {
+			logger.Warn("Error discard connection", zap.Error(err))
+		}
+		err = conn.Close()
 		if err != nil {
 			logger.Warn("Error close connection", zap.Error(err))
 		}
